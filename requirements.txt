@@ -1,5 +1,5 @@
 flask
 groq
-duckduckgo-search
-requests
+google-generativeai
+python-dotenv
 gunicorn
