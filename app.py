@@ -3,7 +3,7 @@ from flask import Flask, request, Response
 import json
 import time
 from groq import Groq
-import google.generativeai as genai
+from google import genai
 
 app = Flask(__name__)
 
@@ -16,7 +16,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # Initialize Clients
 groq_client = Groq(api_key=GROQ_API_KEY)
-genai.configure(api_key=GEMINI_API_KEY)
+client_gemini = genai.Client(api_key=GEMINI_API_KEY)
 
 @app.route('/verify', methods=['POST'])
 def verify():
@@ -46,6 +46,5 @@ def verify():
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    # Render uses the PORT environment variable
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
