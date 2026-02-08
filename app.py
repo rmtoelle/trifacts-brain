@@ -7,7 +7,7 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# --- SECURE KEY RETRIEVAL (Looking at Render's Environment) ---
+# --- SECURE KEYS (PULL FROM RENDER ENVIRONMENT) ---
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
@@ -38,7 +38,7 @@ def verify():
             "status": "Verified" if "true" in verdict.lower() else "Analysis Complete",
             "confidenceScore": 90,
             "summary": verdict,
-            "sources": ["Search Engine ID: " + (GOOGLE_CX_ID or "N/A")],
+            "sources": ["Search Engine ID: " + (GOOGLE_CX_ID or "Internal")],
             "isSecure": True
         }
         yield f"data: {json.dumps({'type': 'result', 'data': result})}\n\n"
@@ -46,6 +46,6 @@ def verify():
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    # Render uses port 10000 by default
+    # Render uses the PORT environment variable
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
