@@ -14,14 +14,30 @@ GOOGLE_CX_ID = "96ba56ee" + "37a1d48e5"
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 def fetch_google_citations(query):
-    """Fetch real links from Google Custom Search"""
+    """
+    Directly fetches web links from Google Custom Search API.
+    Ensures the response is a clean list of URL strings.
+    """
     search_url = "https://www.googleapis.com/customsearch/v1"
-    params = {'key': GOOGLE_API_KEY, 'cx': GOOGLE_CX_ID, 'q': query}
+    params = {
+        'key': GOOGLE_API_KEY, 
+        'cx': GOOGLE_CX_ID, 
+        'q': query,
+        'num': 4 # Fetch top 4 results
+    }
+    
     try:
         r = requests.get(search_url, params=params, timeout=5)
-        items = r.json().get('items', [])
-        return [item['link'] for item in items[:4]]
-    except:
+        search_results = r.json()
+        
+        # Extract just the link strings from the 'items' list
+        if 'items' in search_results:
+            links = [item['link'] for item in search_results['items']]
+            return links
+        
+        return []
+    except Exception as e:
+        print(f"Search API Error: {e}")
         return []
 
 @app.route('/verify', methods=['POST'])
@@ -30,29 +46,29 @@ def verify():
     user_text = data.get("text", "")
 
     def generate():
-        # Update the 'thinkingText' in your Swift UI
-        yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'Analyzing Global Data...'}})}\n\n"
+        # Update UI Status
+        yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'Scanning Lunar Data...'}})}\n\n"
         
-        # 1. Get real links
+        # 1. Fetch real web citations
         links = fetch_google_citations(user_text)
         
         try:
-            # 2. Get the real Answer from the AI Brain
+            # 2. AI Analysis
             completion = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Academic Subject Matter Expert. Provide a concise professor-level verdict. Max 270 chars."},
-                    {"role": "user", "content": f"Analyze: {user_text}"}
+                    {"role": "system", "content": "You are a scientific fact-checker. Provide a concise, academic summary of the facts. Max 270 characters."},
+                    {"role": "user", "content": f"Fact check this: {user_text}"}
                 ],
             )
-            real_answer = completion.choices[0].message.content
+            summary = completion.choices[0].message.content
 
-            # 3. Build the final payload for Build 36
+            # 3. Final Payload (Build 36 Structure)
             result_payload = {
-                "status": "VERIFIED" if "no" in real_answer.lower() else "ANALYSIS",
+                "status": "VERIFIED" if "yes" in summary.lower() or "true" in summary.lower() else "CONFIRMED",
                 "confidenceScore": 99,
-                "summary": real_answer, # THE ACTUAL ANSWER
-                "sources": links,       # THE REAL LINKS
+                "summary": summary,
+                "sources": links, # Clean list of URL strings
                 "isSecure": True
             }
             
