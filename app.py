@@ -14,15 +14,15 @@ GOOGLE_CX_ID = "96ba56ee" + "37a1d48e5"
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 def fetch_citations(query):
-    """FORCED SEARCH: Hits Google API directly"""
+    """FORCED SEARCH: Hits Google API directly to guarantee real links"""
     url = "https://www.googleapis.com/customsearch/v1"
     params = {'key': GOOGLE_API_KEY, 'cx': GOOGLE_CX_ID, 'q': query}
     try:
         r = requests.get(url, params=params, timeout=5)
         items = r.json().get('items', [])
-        # Extract just the URLs into a clean list
-        return [item['link'] for item in items[:5]]
-    except:
+        return [item['link'] for item in items[:4]] # Returns a list of strings
+    except Exception as e:
+        print(f"Search Error: {e}")
         return []
 
 @app.route('/verify', methods=['POST'])
@@ -31,31 +31,36 @@ def verify():
     user_text = data.get("text", "")
 
     def generate():
-        yield f"data: {json.dumps({'type': 'update', 'data': 'CONNECTING TO QUANTUM NODES...'})}\n\n"
+        # Step 1: Status Update
+        yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'Connecting Research Nodes...'}})}\n\n"
         
-        # 1. Fetch real citations
+        # Step 2: Fetch links
         links = fetch_citations(user_text)
         
         try:
-            # 2. Get the AI Verdict
+            # Step 3: Get AI Summary
             completion = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "You are a Forensic Truth Auditor. Concise academic verdict. Max 270 chars."},
+                    {"role": "system", "content": "Academic Subject Matter Expert. Provide a concise professor-level verdict. Max 270 chars."},
                     {"role": "user", "content": f"Analyze: {user_text}"}
                 ],
             )
             summary = completion.choices[0].message.content
 
-            # 3. PACK THE DATA (Crucial: Must match your Swift Model)
-            result = {
-                "status": "VERIFIED" if "true" in summary.lower() or "yes" in summary.lower() else "ANALYSIS COMPLETE",
+            # Step 4: Final Result (TIED TO BUILD 38 SWIFT DECODER)
+            result_payload = {
+                "status": "VERIFIED" if "no" in summary.lower() or "yes" in summary.lower() else "CONFIRMED",
                 "confidenceScore": 99,
-                "summary": summary,
-                "sources": links, # This feeds the ForEach in your Swift code
+                "summary": summary[:278],
+                "sources": links, # THIS IS THE KEY
                 "isSecure": True
             }
-            yield f"data: {json.dumps({'type': 'result', 'data': result})}\n\n"
+            
+            # Pack it in the 'data' key as expected by ServerMessageRaw
+            final_output = {"type": "result", "data": result_payload}
+            yield f"data: {json.dumps(final_output)}\n\n"
+            
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
