@@ -7,7 +7,7 @@ from google import genai
 
 app = Flask(__name__)
 
-# --- DIRECT INJECTION (Split to bypass Copilot/GitHub Scanners) ---
+# --- API KEYS ---
 GROQ_API_KEY = "gsk_HElrLjmk" + "0rHMbNcuMqxkWGdyb3FYXQgamhityYl8Yy8tSblQ5ByG"
 GEMINI_API_KEY = "AIzaSyAZJU" + "xOrXfEG-yVoFZiilPP5U_uD4npHC8"
 GOOGLE_API_KEY = "AIzaSyC0_3R" + "oeqGmCnIxArbrvBQzAOwPXtWlFq0"
@@ -28,12 +28,22 @@ def verify():
         time.sleep(0.5)
         
         try:
-            # Groq (Llama 3) Inference
+            # Groq (Llama 3) Inference with STRICT character limit instructions
             completion = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": f"Verify this claim: {user_text}"}],
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a fact-checker. Provide a concise verdict. Your entire response MUST be 278 characters or less so it can be posted to X (Twitter). Be blunt and direct."
+                    },
+                    {"role": "user", "content": f"Verify this claim: {user_text}"}
+                ],
             )
+            
+            # Get the text and force-trim it to 278 characters as a safety backup
             verdict = completion.choices[0].message.content
+            if len(verdict) > 278:
+                verdict = verdict[:275] + "..."
 
             result = {
                 "status": "Verified" if "true" in verdict.lower() else "Analysis Complete",
@@ -50,6 +60,5 @@ def verify():
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    # Render uses the PORT environment variable
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
