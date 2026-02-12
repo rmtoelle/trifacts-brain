@@ -20,7 +20,8 @@ def fetch_citations(query):
     try:
         r = requests.get(url, params=params, timeout=5)
         items = r.json().get('items', [])
-        return [item['link'] for item in items[:4]] # Returns a list of strings
+        # Returns a clean list of strings for the Swift array
+        return [item['link'] for item in items[:4]] 
     except Exception as e:
         print(f"Search Error: {e}")
         return []
@@ -31,10 +32,10 @@ def verify():
     user_text = data.get("text", "")
 
     def generate():
-        # Step 1: Status Update
+        # Step 1: Status Update for the 'thinkingText' in Swift
         yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'Connecting Research Nodes...'}})}\n\n"
         
-        # Step 2: Fetch links
+        # Step 2: Fetch real links first
         links = fetch_citations(user_text)
         
         try:
@@ -53,11 +54,11 @@ def verify():
                 "status": "VERIFIED" if "no" in summary.lower() or "yes" in summary.lower() else "CONFIRMED",
                 "confidenceScore": 99,
                 "summary": summary[:278],
-                "sources": links, # THIS IS THE KEY
+                "sources": links, # Dedicated list of strings
                 "isSecure": True
             }
             
-            # Pack it in the 'data' key as expected by ServerMessageRaw
+            # Encapsulate in 'data' key for ServerMessageRaw
             final_output = {"type": "result", "data": result_payload}
             yield f"data: {json.dumps(final_output)}\n\n"
             
@@ -67,5 +68,6 @@ def verify():
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
+    # Render uses port 10000 by default
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
