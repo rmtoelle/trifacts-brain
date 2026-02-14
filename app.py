@@ -93,12 +93,18 @@ def verify():
         
         yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'SYNTHESIZING VERDICT...'}})}\n\n"
         
-        try:
+       try:
             synthesis = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Chief Justice: Summarize the consensus. Name Grok, Claude, Gemini, and OpenAI. Use web links as proof. Under 450 chars."},
-                    {"role": "user", "content": f"Jury: {ai_results}. Web: {web_links}."}
+                    {"role": "system", "content": (
+                        "You are the Chief Justice. You MUST provide a consensus report. "
+                        "1. Explicitly name: **Grok**, **Claude**, **Gemini**, and **OpenAI**. "
+                        "2. Do NOT mention 'Wiki' or 'Meta'—use the name **Grok**. "
+                        "3. Attribute specific findings to each engine. "
+                        "4. Keep it under 450 characters for a mobile screen."
+                    )},
+                    {"role": "user", "content": f"Jury results: {ai_results}. Web Proof: {web_links}."}
                 ]
             )
             summary = synthesis.choices[0].message.content
@@ -133,3 +139,4 @@ def verify():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
