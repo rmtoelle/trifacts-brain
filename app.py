@@ -3,26 +3,38 @@ import requests
 import concurrent.futures
 import re
 import os
+
 from flask import Flask, request, Response
 from flask_cors import CORS
+
+# AI Engines
 from groq import Groq
 from openai import OpenAI
-import google.generativeai as genai
+import google.genai as genai
 import anthropic
+
+# Search Engines
 from duckduckgo_search import DDGS
+from wolframalpha import Client
 
 app = Flask(__name__)
 CORS(app)
 
+
 # ==========================================
 # MASTER KEYS (Identical to PC)
 # ==========================================
-GROQ_API_KEY = "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"
-GEMINI_API_KEY = "AIzaSyAZJUxOrXfEG-yVoFZiilPP5U_uD4npHC8"
-OPENAI_API_KEY = "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"
-ANTHROPIC_API_KEY = "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"
-GOOGLE_SEARCH_KEY = "AIzaSyC0_3RoeqGmCnIxArbrvBQzAOwPXtWlFq0"
-GOOGLE_CX_ID = "96ba56ee37a1d48e5"
+# ============================================================
+#  API KEYS — PLACEHOLDERS (DO NOT PUT REAL KEYS IN GITHUB)
+# ============================================================
+GOOGLE_API_KEY = ""
+GOOGLE_CX = ""
+XAI_API_KEY = ""
+OPENAI_API_KEY = ""
+CLAUDE_API_KEY = ""
+WOLFRAM_APPID = ""
+# ============================================================
+
 
 # Initialize Clients once at the top
 groq_client = Groq(api_key=GROQ_API_KEY)
@@ -139,4 +151,5 @@ def verify():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
