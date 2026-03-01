@@ -19,6 +19,7 @@ import anthropic
 
 # Search Engines
 from duckduckgo_search import DDGS
+import wolframalpha
 
 app = Flask(__name__)
 CORS(app)
@@ -41,6 +42,7 @@ groq_client      = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 oa_client        = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 anthropic_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY) if CLAUDE_API_KEY else None
 grok_client      = OpenAI(api_key=XAI_API_KEY, base_url="https://api.x.ai/v1") if XAI_API_KEY else None
+wolfram_client   = wolframalpha.Client(WOLFRAM_APPID) if WOLFRAM_APPID else None
 
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -102,6 +104,24 @@ def fetch_citations(query: str):
             pass
 
     return links
+
+# ============================================================
+#  WOLFRAM ALPHA SEARCH
+# ============================================================
+
+def fetch_wolfram(query: str):
+    if not wolfram_client:
+        return None
+    try:
+        res = wolfram_client.query(query)
+        # Get the plaintext result from the first valid pod
+        for pod in res.pods:
+            for sub in pod.subpods:
+                if sub.plaintext and is_clean(sub.plaintext):
+                    return sub.plaintext
+    except Exception:
+        pass
+    return None
 
 # ============================================================
 #  AI ENGINE RESPONSES
@@ -189,11 +209,19 @@ def verify():
         yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'SCANNING WEB EVIDENCE...'}})}\n\n"
         web_links = fetch_citations(user_text)
 
-        # Step 3: AI engines
+        # Step 3: Wolfram Alpha
+        yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'CONSULTING WOLFRAM ALPHA...'}})}\n\n"
+        wolfram_result = fetch_wolfram(user_text)
+
+        # Step 4: AI engines
         yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'CONSULTING AI ENGINES...'}})}\n\n"
         ai_results = get_ai_responses(f"Verify: {user_text}. Evidence: {web_links}")
 
-        # Step 4: Synthesis
+        # Add Wolfram result to AI results if available
+        if wolfram_result:
+            ai_results.append(f"WOLFRAM ALPHA: {wolfram_result}")
+
+        # Step 5: Synthesis
         yield f"data: {json.dumps({'type': 'update', 'data': {'value': 'SYNTHESIZING VERDICT...'}})}\n\n"
 
         # Use Claude as the synthesizer/summarizer
@@ -207,7 +235,7 @@ def verify():
                             "role": "user",
                             "content": (
                                 "You are the Chief Justice fact-checker. "
-                                "Provide a consensus report naming Grok, Claude, Gemini, and OpenAI. "
+                                "Provide a consensus report naming Grok, Claude, Gemini, OpenAI, and Wolfram Alpha where relevant. "
                                 "Attribute specific findings to each engine. "
                                 "Keep it under 450 characters for a mobile screen.\n\n"
                                 f"Jury results: {ai_results}\nWeb Proof: {web_links}"
@@ -219,7 +247,6 @@ def verify():
             except Exception:
                 summary = "Consensus achieved. Facts verified via multi-engine cross-reference."
         elif groq_client:
-            # Fallback to Groq if Claude is unavailable
             try:
                 synthesis = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
@@ -228,7 +255,7 @@ def verify():
                             "role": "system",
                             "content": (
                                 "You are the Chief Justice. Provide a consensus report. "
-                                "Name Grok, Claude, Gemini, and OpenAI. "
+                                "Name Grok, Claude, Gemini, OpenAI, and Wolfram Alpha where relevant. "
                                 "Keep it under 450 characters for a mobile screen."
                             ),
                         },
@@ -246,6 +273,8 @@ def verify():
 
         # Build sources list
         final_sources = []
+        if wolfram_result:
+            final_sources.append(f"WOLFRAM ALPHA: {wolfram_result}")
         if web_links:
             final_sources.append("WEB CITATIONS VERIFY AI CONSENSUS:")
             final_sources.extend(web_links)
@@ -260,7 +289,7 @@ def verify():
 
         if not final_sources or final_sources == ["WEB CITATIONS VERIFY AI CONSENSUS:"]:
             final_sources = [
-                "CONSENSUS BY GROK, CLAUDE, GEMINI, AND OPENAI (Internal Training Data)"
+                "CONSENSUS BY GROK, CLAUDE, GEMINI, OPENAI, AND WOLFRAM ALPHA (Internal Training Data)"
             ]
 
         result_payload = {
